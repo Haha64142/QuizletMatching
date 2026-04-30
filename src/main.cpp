@@ -14,7 +14,7 @@
  * 3. threshold (R+G+B > 3*75)
  *
  * Variables and Definitions:
- * tile number: 0-15 representing the physical location of the tile on the screen
+ * tile number: 0-11 representing the physical location of the tile on the screen
  * pair id: 0-46 representing each term + definition pair
  * tile hash: specific hash for each tile (94 unique tiles)
  *
@@ -24,6 +24,15 @@
  * */
 
 #include <iostream>
+
+int cropWidth = 351;
+int cropHeight = 248;
+
+int cropPosX[12] = {216, 590, 964, 1337, 216, 590, 964, 1337, 216, 590, 964, 1337};
+int cropPosY[12] = {215, 215, 215, 215, 485, 485, 485, 485, 754, 754, 754, 754};
+
+int clickPosX[12] = {391, 760, 1134, 1512, 391, 760, 1134, 1512, 391, 760, 1134, 1512};
+int clickPosY[12] = {339, 339, 339, 339, 608, 608, 608, 608, 881, 881, 881, 881};
 
 int main() {
     std::cout << "Hello World\n";
