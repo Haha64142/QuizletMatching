@@ -25,6 +25,7 @@
 
 #include <array>
 #include <iostream>
+#include <stack>
 #include <unordered_map>
 #include <windows.h>
 
@@ -78,6 +79,8 @@ int main() {
     std::unordered_map<int, int> rememberedPairs;
     int pairID = 0;
 
+    std::stack<int> clickNumbers;
+
     // TODO: Take main screenshot
     for (size_t i = 0; i < 12; ++i) {
         // TODO: crop tile 'i' and process
@@ -87,13 +90,20 @@ int main() {
         std::unordered_map<int, int>::const_iterator it = rememberedPairs.find(pairID);
         if (it != rememberedPairs.end()) {
             // std::cout << "Clicking " << i << " and " << it->second << '\n';
-            click(i);
-            click(it->second);
+            clickNumbers.push(i);
+            clickNumbers.push(it->second);
             rememberedPairs.erase(pairID);
         } else {
             // std::cout << "Adding " << i << '\n';
             rememberedPairs.emplace(pairID, i);
         }
     }
+
+    // TODO: Slow down the clicking. Quizlet can't handle inputs that fast
+    for (size_t i = 0; i < 12; ++i) {
+        click(clickNumbers.top());
+        clickNumbers.pop();
+    }
+
     return 0;
 }
