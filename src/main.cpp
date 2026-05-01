@@ -90,8 +90,8 @@ int main() {
         std::unordered_map<int, int>::const_iterator it = rememberedPairs.find(pairID);
         if (it != rememberedPairs.end()) {
             // std::cout << "Clicking " << i << " and " << it->second << '\n';
-            clickNumbers.push(i);
             clickNumbers.push(it->second);
+            clickNumbers.push(i);
             rememberedPairs.erase(pairID);
         } else {
             // std::cout << "Adding " << i << '\n';
@@ -99,10 +99,10 @@ int main() {
         }
     }
 
-    // TODO: Slow down the clicking. Quizlet can't handle inputs that fast
     for (size_t i = 0; i < 12; ++i) {
         click(clickNumbers.top());
         clickNumbers.pop();
+        Sleep(150);
     }
 
     return 0;
