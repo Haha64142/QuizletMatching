@@ -24,9 +24,11 @@
  * */
 
 #include <array>
+#include <cstdint>
 #include <iostream>
 #include <stack>
 #include <unordered_map>
+#include <vector>
 #include <windows.h>
 
 constexpr int screenWidth = 1920;
@@ -36,13 +38,14 @@ constexpr int cropWidth = 351;
 constexpr int cropHeight = 248;
 
 constexpr std::array<int, 12> cropPosX = {216, 590,  964, 1337, 216, 590,
-                                      964, 1337, 216, 590,  964, 1337};
-constexpr std::array<int, 12> cropPosY = {215, 215, 215, 215, 485, 485, 485, 485, 754, 754, 754, 754};
+                                          964, 1337, 216, 590,  964, 1337};
+constexpr std::array<int, 12> cropPosY = {215, 215, 215, 215, 485, 485,
+                                          485, 485, 754, 754, 754, 754};
 
 constexpr std::array<int, 12> origClickPosX = {391,  760,  1134, 1512, 391,  760,
-                                           1134, 1512, 391,  760,  1134, 1512};
+                                               1134, 1512, 391,  760,  1134, 1512};
 constexpr std::array<int, 12> origClickPosY = {339, 339, 339, 339, 608, 608,
-                                           608, 608, 881, 881, 881, 881};
+                                               608, 608, 881, 881, 881, 881};
 
 constexpr std::array<int, 12> normalizePos(const std::array<int, 12> pos, int dimensionLength) {
     std::array<int, 12> newPos = {};
@@ -73,15 +76,61 @@ void click(int tileNumber) {
     SendInput(2, mouse, sizeof(INPUT));
 }
 
+std::vector<uint8_t> takeScreenshot() {
+    HDC screenDC = GetDC(NULL);
+    HDC memoryDC = CreateCompatibleDC(screenDC);
+    HBITMAP targetBitmap = CreateCompatibleBitmap(screenDC, screenWidth, screenHeight);
+    HGDIOBJ oldObj = SelectObject(memoryDC, targetBitmap);
+    BitBlt(memoryDC, 0, 0, screenWidth, screenHeight, screenDC, 0, 0, SRCCOPY);
+
+    BITMAPINFO bmi{};
+    bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+    bmi.bmiHeader.biWidth = screenWidth;
+    bmi.bmiHeader.biHeight = -screenHeight;
+
+    bmi.bmiHeader.biPlanes = 1;
+    bmi.bmiHeader.biBitCount = 32;
+    bmi.bmiHeader.biCompression = BI_RGB;
+
+    std::vector<uint8_t> pixels(screenWidth * screenHeight * 4);
+    GetDIBits(memoryDC, targetBitmap, 0, screenHeight, pixels.data(), &bmi, DIB_RGB_COLORS);
+
+    // Copy screenshot to clipboard for debugging
+    // size_t headerSize = sizeof(BITMAPINFOHEADER);
+    // size_t pixelSize = pixels.size();
+    // size_t totalSize = headerSize + pixelSize;
+    //
+    // HGLOBAL hMem = GlobalAlloc(GMEM_MOVEABLE, totalSize);
+    //
+    // void *dest = GlobalLock(hMem);
+    //
+    // memcpy(dest, &bmi.bmiHeader, headerSize);
+    // memcpy(static_cast<uint8_t *>(dest) + headerSize, pixels.data(), pixelSize);
+    //
+    // GlobalUnlock(hMem);
+    //
+    // OpenClipboard(NULL);
+    // EmptyClipboard();
+    // SetClipboardData(CF_DIB, hMem);
+    // CloseClipboard();
+
+    SelectObject(memoryDC, oldObj);
+    DeleteObject(targetBitmap);
+    DeleteDC(memoryDC);
+    ReleaseDC(NULL, screenDC);
+
+    return pixels;
+}
+
 int main() {
     setupMouse();
 
     std::unordered_map<int, int> rememberedPairs;
     int pairID = 0;
-
     std::stack<int> clickNumbers;
 
-    // TODO: Take main screenshot
+    const std::vector<uint8_t> fullScreenshot = takeScreenshot();
+
     for (size_t i = 0; i < 12; ++i) {
         // TODO: crop tile 'i' and process
         // TODO: convert cropped section to pair id
