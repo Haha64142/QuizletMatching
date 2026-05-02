@@ -9,7 +9,7 @@
  * 8. repeat 2-7 changing the cropped section (but keep the same full screenshot)
  *
  * Image processing:
- * 1. resize to 100x100 (maybe even 64x64)
+ * 1. resize to a 118x84 (1/3) or even smaller
  * 2. grayscale (possibly combine 2 and 3 into one step)
  * 3. threshold (R+G+B > 3*75)
  *
@@ -122,6 +122,52 @@ std::vector<uint8_t> takeScreenshot() {
     return pixels;
 }
 
+std::vector<uint8_t> crop(const std::vector<uint8_t> &src, int srcWidth, int srcHeight, int x,
+                          int y, int cropWidth, int cropHeight) {
+    std::vector<uint8_t> out(cropWidth * cropHeight * 4);
+    for (int row = 0; row < cropHeight; ++row) {
+        int srcIdx = ((y + row) * srcWidth + x) * 4;
+        int destIdx = row * cropWidth * 4;
+
+        memcpy(&out[destIdx], &src[srcIdx], cropWidth * 4);
+    }
+
+    // Copy to clipboard for debugging
+    // BITMAPINFO bmi{};
+    // bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+    // bmi.bmiHeader.biWidth = cropWidth;
+    // bmi.bmiHeader.biHeight = -cropHeight;
+    //
+    // bmi.bmiHeader.biPlanes = 1;
+    // bmi.bmiHeader.biBitCount = 32;
+    // bmi.bmiHeader.biCompression = BI_RGB;
+    //
+    // size_t headerSize = sizeof(BITMAPINFOHEADER);
+    // size_t pixelSize = out.size();
+    // size_t totalSize = headerSize + pixelSize;
+    //
+    // HGLOBAL hMem = GlobalAlloc(GMEM_MOVEABLE, totalSize);
+    //
+    // void *dest = GlobalLock(hMem);
+    //
+    // memcpy(dest, &bmi.bmiHeader, headerSize);
+    // memcpy(static_cast<uint8_t *>(dest) + headerSize, out.data(), pixelSize);
+    //
+    // GlobalUnlock(hMem);
+    //
+    // OpenClipboard(NULL);
+    // EmptyClipboard();
+    // SetClipboardData(CF_DIB, hMem);
+    // CloseClipboard();
+
+    return out;
+}
+
+std::vector<uint8_t> crop(const std::vector<uint8_t> &src, int tileNumber) {
+    return crop(src, screenWidth, screenHeight, cropPosX.at(tileNumber), cropPosY.at(tileNumber),
+                cropWidth, cropHeight);
+}
+
 int main() {
     setupMouse();
 
@@ -132,8 +178,10 @@ int main() {
     const std::vector<uint8_t> fullScreenshot = takeScreenshot();
 
     for (size_t i = 0; i < 12; ++i) {
-        // TODO: crop tile 'i' and process
-        // TODO: convert cropped section to pair id
+        crop(fullScreenshot, i);
+        // TODO: resize cropped section
+        // TODO: threshold resized section
+        // TODO: convert thresholded section to pair id
         pairID = i / 2;
         // std::cout << "Pair id: " << pairID << '\n';
         std::unordered_map<int, int>::const_iterator it = rememberedPairs.find(pairID);
