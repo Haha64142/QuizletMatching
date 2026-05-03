@@ -27,9 +27,13 @@
 #include <cstdint>
 #include <iostream>
 #include <stack>
+#include <string.h>
 #include <unordered_map>
 #include <vector>
 #include <windows.h>
+
+#define STB_IMAGE_RESIZE_IMPLEMENTATION
+#include "stb_image_resize2.h"
 
 constexpr int screenWidth = 1920;
 constexpr int screenHeight = 1080;
@@ -57,6 +61,9 @@ constexpr std::array<int, 12> normalizePos(const std::array<int, 12> pos, int di
 
 constexpr std::array<int, 12> clickPosX = normalizePos(origClickPosX, screenWidth);
 constexpr std::array<int, 12> clickPosY = normalizePos(origClickPosY, screenHeight);
+
+const int resizeWidth = 118;
+const int resizeHeight = 84;
 
 INPUT mouse[2] = {};
 
@@ -168,6 +175,14 @@ std::vector<uint8_t> crop(const std::vector<uint8_t> &src, int tileNumber) {
                 cropWidth, cropHeight);
 }
 
+std::vector<uint8_t> resize(const std::vector<uint8_t> &src, int inputWidth, int inputHeight,
+                            int outputWidth, int outputHeight) {
+    std::vector<uint8_t> out(outputWidth * outputHeight * 4);
+    stbir_resize_uint8_linear(src.data(), inputWidth, inputHeight, 0, out.data(), outputWidth,
+                              outputHeight, 0, STBIR_BGRA);
+    return out;
+}
+
 int main() {
     setupMouse();
 
@@ -178,8 +193,7 @@ int main() {
     const std::vector<uint8_t> fullScreenshot = takeScreenshot();
 
     for (size_t i = 0; i < 12; ++i) {
-        crop(fullScreenshot, i);
-        // TODO: resize cropped section
+        resize(crop(fullScreenshot, i), cropWidth, cropHeight, resizeWidth, resizeHeight);
         // TODO: threshold resized section
         // TODO: convert thresholded section to pair id
         pairID = i / 2;
