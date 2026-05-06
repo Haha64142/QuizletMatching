@@ -26,7 +26,6 @@
 #include <array>
 #include <cstdint>
 #include <iostream>
-#include <stack>
 #include <string.h>
 #include <string>
 #include <tesseract/baseapi.h>
@@ -84,76 +83,76 @@ const std::unordered_map<std::string, int> textData = {
     {"Most economists agree", 7},
     {"Dust Bowl", 8},
     {"Poor agricultural practices", 8},
-    {"", 9},
-    {"", 9},
-    {"", 10},
-    {"", 10},
-    {"", 11},
-    {"", 11},
-    {"", 12},
-    {"", 12},
-    {"", 13},
-    {"", 13},
+    {"John Steinbeck", 9},
+    {"Wrote,The Grapes", 9},
+    {"Public Works", 10},
+    {"Projects such as", 10},
+    {"Reconstruction Finance Corporation", 11},
+    {"Set up to", 11},
+    {"Emergency Relief and", 12},
+    {"Called for billion", 12},
+    {"Farmers", 13},
+    {"In the summer", 13},
     {"Hoovervilles", 14},
     {"Because people blamed", 14},
     {"Bonus Army", 15},
     {"Veterans that set", 15},
-    {"", 16},
-    {"", 16},
-    {"", 17},
-    {"", 17},
-    {"", 18},
-    {"", 18},
+    {"Douglas MacArthur", 16},
+    {"Army chief of", 16},
+    {"Herbert Hoover", 17},
+    {"Failed to resolve", 17},
+    {"Franklin Roosevelt FDR", 18},
+    {"After serving as", 18},
     {"New Deal", 19},
     {"Roosevelt's policies", 19},
     {"Bank Holiday", 20},
     {"Closing of remaining", 20},
-    {"", 21},
-    {"", 21},
+    {"The Brain Trust", 21},
+    {"Name given to", 21},
     {"The Emergency Banking", 22},
     {"Required federal examiners", 22},
     {"Fireside Chats", 23},
     {"Direct talks FDR", 23},
-    {"", 24},
-    {"", 24},
-    {"", 25},
-    {"", 25},
-    {"", 26},
-    {"", 26},
-    {"", 27},
-    {"", 27},
+    {"Securities and Exchange", 24},
+    {"An independent agency", 24},
+    {"Federal Deposit Insurance", 25},
+    {"Provides government insurance", 25},
+    {"Agriculture Adjustment Administration", 26},
+    {"Paid farmers not", 26},
+    {"The Civilian Conservation", 27},
+    {"Employed single men", 27},
     {"Federal Emergency Relief", 28},
     {"Granted federal money", 28},
     {"Public Works Administration", 29},
     {"Provided employment in", 29},
     {"The Civil Works", 30},
     {"Worked somewhat like", 30},
-    {"", 31},
-    {"", 31},
+    {"American Liberty League", 31},
+    {"Business leaders and", 31},
     {"Huey Long", 32},
     {"The most serious", 32},
-    {"", 33},
-    {"", 33},
-    {"", 34},
-    {"", 34},
-    {"", 35},
-    {"", 35},
-    {"", 36},
-    {"", 36},
-    {"", 37},
-    {"", 37},
-    {"", 38},
-    {"", 38},
-    {"", 39},
-    {"", 39},
-    {"", 40},
-    {"", 40},
+    {"Works Progress Administration", 33},
+    {"Combated unemployment created", 33},
+    {"The Social Security", 34},
+    {"Its major goal", 34},
+    {"Tennessee Valley Authority", 35},
+    {"Program that brought", 35},
+    {"Supreme Court Court", 36},
+    {"Roosevelt wanted to", 36},
+    {"Hobos", 37},
+    {"Homeless wanderers who", 37},
+    {"Deficit Spending", 38},
+    {"The economic theory", 38},
+    {"Deficit Spending", 39},
+    {"Spending more than", 39},
+    {"Okies", 40},
+    {"Farmers who packed", 40},
     {"Loess", 41},
     {"Windblown topsoil;lands", 41},
     {"National Youth Administration", 42},
     {"Provided jobs and", 42},
-    {"", 43},
-    {"", 43},
+    {"Federal Housing Administration", 43},
+    {"Very small down", 43},
     {"Home Owners Loan", 44},
     {"Refinance loans so", 44},
     {"Soup Kitchens", 45},
@@ -243,32 +242,32 @@ std::vector<uint8_t> crop(const std::vector<uint8_t> &src, int srcWidth, int src
     }
 
     // Copy to clipboard for debugging
-    BITMAPINFO bmi{};
-    bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
-    bmi.bmiHeader.biWidth = cropWidth;
-    bmi.bmiHeader.biHeight = -cropHeight;
-
-    bmi.bmiHeader.biPlanes = 1;
-    bmi.bmiHeader.biBitCount = 32;
-    bmi.bmiHeader.biCompression = BI_RGB;
-
-    size_t headerSize = sizeof(BITMAPINFOHEADER);
-    size_t pixelSize = out.size();
-    size_t totalSize = headerSize + pixelSize;
-
-    HGLOBAL hMem = GlobalAlloc(GMEM_MOVEABLE, totalSize);
-
-    void *dest = GlobalLock(hMem);
-
-    memcpy(dest, &bmi.bmiHeader, headerSize);
-    memcpy(static_cast<uint8_t *>(dest) + headerSize, out.data(), pixelSize);
-
-    GlobalUnlock(hMem);
-
-    OpenClipboard(NULL);
-    EmptyClipboard();
-    SetClipboardData(CF_DIB, hMem);
-    CloseClipboard();
+    // BITMAPINFO bmi{};
+    // bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+    // bmi.bmiHeader.biWidth = cropWidth;
+    // bmi.bmiHeader.biHeight = -cropHeight;
+    //
+    // bmi.bmiHeader.biPlanes = 1;
+    // bmi.bmiHeader.biBitCount = 32;
+    // bmi.bmiHeader.biCompression = BI_RGB;
+    //
+    // size_t headerSize = sizeof(BITMAPINFOHEADER);
+    // size_t pixelSize = out.size();
+    // size_t totalSize = headerSize + pixelSize;
+    //
+    // HGLOBAL hMem = GlobalAlloc(GMEM_MOVEABLE, totalSize);
+    //
+    // void *dest = GlobalLock(hMem);
+    //
+    // memcpy(dest, &bmi.bmiHeader, headerSize);
+    // memcpy(static_cast<uint8_t *>(dest) + headerSize, out.data(), pixelSize);
+    //
+    // GlobalUnlock(hMem);
+    //
+    // OpenClipboard(NULL);
+    // EmptyClipboard();
+    // SetClipboardData(CF_DIB, hMem);
+    // CloseClipboard();
 
     return out;
 }
@@ -316,7 +315,7 @@ std::string getFirstWords(const std::string &inText, int idealWords = 3) {
     int words = 0;
     bool inWord = false;
 
-    for (char c : inText) {
+    for (const char &c : inText) {
         if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')) {
             inWord = true;
             outText += c;
@@ -332,7 +331,7 @@ std::string getFirstWords(const std::string &inText, int idealWords = 3) {
         return "";
 
     char c = outText.back();
-    if (c < 'A' || c > 'z' || (c > 'Z' && c < 'a')) {
+    if (!((c >= 'A' && c <= 'Z') || (c>= 'a' && c <= 'z'))) {
         outText.pop_back();
     }
 
@@ -348,7 +347,8 @@ int main() {
     std::unordered_map<int, int> rememberedPairs;
     int pairID = 0;
     std::string text;
-    std::stack<int> clickNumbers;
+    std::vector<int> clickNumbers;
+    clickNumbers.reserve(12);
 
     bool exit = false;
 
@@ -369,8 +369,8 @@ int main() {
         std::unordered_map<int, int>::const_iterator it = rememberedPairs.find(pairID);
         if (it != rememberedPairs.end()) {
             // std::cout << "Clicking " << i << " and " << it->second << '\n';
-            clickNumbers.push(it->second);
-            clickNumbers.push(i);
+            clickNumbers.push_back(it->second);
+            clickNumbers.push_back(i);
             rememberedPairs.erase(pairID);
         } else {
             // std::cout << "Adding " << i << '\n';
@@ -382,9 +382,8 @@ int main() {
     if (exit)
         return 1;
 
-    for (size_t i = 0; i < 12; ++i) {
-        click(clickNumbers.top());
-        clickNumbers.pop();
+    for (const int& tile : clickNumbers) {
+        click(tile);
         Sleep(160);
     }
 
