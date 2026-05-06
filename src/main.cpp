@@ -9,9 +9,8 @@
  * 8. repeat 2-7 changing the cropped section (but keep the same full screenshot)
  *
  * Image processing:
- * 1. resize to a 118x84 (1/3) or even smaller
- * 2. grayscale (possibly combine 2 and 3 into one step)
- * 3. threshold (R+G+B > 3*75)
+ * 1. grayscale
+ * 2. ocr using tesseract
  *
  * Variables and Definitions:
  * tile number: 0-11 representing the physical location of the tile on the screen
@@ -23,6 +22,7 @@
  * remembered pairs: unordered_map - key: pair id, value: tile number
  * */
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <iostream>
@@ -300,6 +300,8 @@ std::string getText(const std::vector<uint8_t> &src, int width, int height) {
     char *textPtr = tess.GetUTF8Text();
     std::string text(textPtr);
     delete[] textPtr;
+
+    std::replace(text.begin(), text.end(), '\n', ' ');
     return text;
 }
 
@@ -331,7 +333,7 @@ std::string getFirstWords(const std::string &inText, int idealWords = 3) {
         return "";
 
     char c = outText.back();
-    if (!((c >= 'A' && c <= 'Z') || (c>= 'a' && c <= 'z'))) {
+    if (!((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z'))) {
         outText.pop_back();
     }
 
@@ -347,8 +349,9 @@ int main() {
     std::unordered_map<int, int> rememberedPairs;
     int pairID = 0;
     std::string text;
-    std::vector<int> clickNumbers;
-    clickNumbers.reserve(12);
+
+    std::array<int, 12> clickNumbers;
+    size_t storeIdx = 0;
 
     bool exit = false;
 
@@ -369,8 +372,8 @@ int main() {
         std::unordered_map<int, int>::const_iterator it = rememberedPairs.find(pairID);
         if (it != rememberedPairs.end()) {
             // std::cout << "Clicking " << i << " and " << it->second << '\n';
-            clickNumbers.push_back(it->second);
-            clickNumbers.push_back(i);
+            clickNumbers[storeIdx++] = it->second;
+            clickNumbers[storeIdx++] = i;
             rememberedPairs.erase(pairID);
         } else {
             // std::cout << "Adding " << i << '\n';
@@ -382,7 +385,7 @@ int main() {
     if (exit)
         return 1;
 
-    for (const int& tile : clickNumbers) {
+    for (const int &tile : clickNumbers) {
         click(tile);
         Sleep(160);
     }
