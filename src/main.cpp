@@ -9,9 +9,8 @@
  * 8. repeat 2-7 changing the cropped section (but keep the same full screenshot)
  *
  * Image processing:
- * 1. resize to a 118x84 (1/3) or even smaller
- * 2. grayscale (possibly combine 2 and 3 into one step)
- * 3. threshold (R+G+B > 3*75)
+ * 1. grayscale
+ * 2. ocr using tesseract
  *
  * Variables and Definitions:
  * tile number: 0-11 representing the physical location of the tile on the screen
@@ -23,26 +22,25 @@
  * remembered pairs: unordered_map - key: pair id, value: tile number
  * */
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <iostream>
-#include <stack>
 #include <string.h>
+#include <string>
+#include <tesseract/baseapi.h>
 #include <unordered_map>
 #include <vector>
 #include <windows.h>
 
-#define STB_IMAGE_RESIZE_IMPLEMENTATION
-#include "stb_image_resize2.h"
-
 constexpr int screenWidth = 1920;
 constexpr int screenHeight = 1080;
 
-constexpr int cropWidth = 320;
+constexpr int cropWidth = 350;
 constexpr int cropHeight = 160;
 
-constexpr std::array<int, 12> cropPosX = {231, 605,  979, 1352, 231, 605,
-                                          979, 1352, 231, 605,  979, 1352};
+constexpr std::array<int, 12> cropPosX = {216, 590,  964, 1337, 216, 590,
+                                          964, 1337, 216, 590,  964, 1337};
 constexpr std::array<int, 12> cropPosY = {260, 260, 260, 260, 530, 530,
                                           530, 530, 799, 799, 799, 799};
 
@@ -62,12 +60,106 @@ constexpr std::array<int, 12> normalizePos(const std::array<int, 12> pos, int di
 constexpr std::array<int, 12> clickPosX = normalizePos(origClickPosX, screenWidth);
 constexpr std::array<int, 12> clickPosY = normalizePos(origClickPosY, screenHeight);
 
-const int resizeWidth = 120;
-const int resizeHeight = 60;
-
-constexpr int thresholdVal = 128 * 256; // 50%
-
 INPUT mouse[2] = {};
+
+tesseract::TessBaseAPI tess;
+
+const std::unordered_map<std::string, int> textData = {
+    {"The Election of", 0},
+    {"Republican Herbert Hoover", 0},
+    {"Stock Market", 1},
+    {"A system of", 1},
+    {"Margin", 2},
+    {"Buying a stock", 2},
+    {"Margin Call", 3},
+    {"Demand by a", 3},
+    {"Installment Plan", 4},
+    {"People would make", 4},
+    {"Black Tuesday", 5},
+    {"On October prices", 5},
+    {"Banks in a", 6},
+    {"Depositors lost their", 6},
+    {"Overproduction/Surplus", 7},
+    {"Most economists agree", 7},
+    {"Dust Bowl", 8},
+    {"Poor agricultural practices", 8},
+    {"John Steinbeck", 9},
+    {"Wrote,The Grapes", 9},
+    {"Public Works", 10},
+    {"Projects such as", 10},
+    {"Reconstruction Finance Corporation", 11},
+    {"Set up to", 11},
+    {"Emergency Relief and", 12},
+    {"Called for billion", 12},
+    {"Farmers", 13},
+    {"In the summer", 13},
+    {"Hoovervilles", 14},
+    {"Because people blamed", 14},
+    {"Bonus Army", 15},
+    {"Veterans that set", 15},
+    {"Douglas MacArthur", 16},
+    {"Army chief of", 16},
+    {"Herbert Hoover", 17},
+    {"Failed to resolve", 17},
+    {"Franklin Roosevelt FDR", 18},
+    {"After serving as", 18},
+    {"New Deal", 19},
+    {"Roosevelt's policies", 19},
+    {"Bank Holiday", 20},
+    {"Closing of remaining", 20},
+    {"The Brain Trust", 21},
+    {"Name given to", 21},
+    {"The Emergency Banking", 22},
+    {"Required federal examiners", 22},
+    {"Fireside Chats", 23},
+    {"Direct talks FDR", 23},
+    {"Securities and Exchange", 24},
+    {"An independent agency", 24},
+    {"Federal Deposit Insurance", 25},
+    {"Provides government insurance", 25},
+    {"Agriculture Adjustment Administration", 26},
+    {"Paid farmers not", 26},
+    {"The Civilian Conservation", 27},
+    {"Employed single men", 27},
+    {"Federal Emergency Relief", 28},
+    {"Granted federal money", 28},
+    {"Public Works Administration", 29},
+    {"Provided employment in", 29},
+    {"The Civil Works", 30},
+    {"Worked somewhat like", 30},
+    {"American Liberty League", 31},
+    {"Business leaders and", 31},
+    {"Huey Long", 32},
+    {"The most serious", 32},
+    {"Works Progress Administration", 33},
+    {"Combated unemployment created", 33},
+    {"The Social Security", 34},
+    {"Its major goal", 34},
+    {"Tennessee Valley Authority", 35},
+    {"Program that brought", 35},
+    {"Supreme Court Court", 36},
+    {"Roosevelt wanted to", 36},
+    {"Hobos", 37},
+    {"Homeless wanderers who", 37},
+    {"Deficit Spending", 38},
+    {"The economic theory", 38},
+    {"Deficit Spending", 39},
+    {"Spending more than", 39},
+    {"Okies", 40},
+    {"Farmers who packed", 40},
+    {"Loess", 41},
+    {"Windblown topsoil;lands", 41},
+    {"National Youth Administration", 42},
+    {"Provided jobs and", 42},
+    {"Federal Housing Administration", 43},
+    {"Very small down", 43},
+    {"Home Owners Loan", 44},
+    {"Refinance loans so", 44},
+    {"Soup Kitchens", 45},
+    {"During the Depression", 45},
+    {"Socialism", 46},
+    {"As the American", 46},
+};
 
 void setupMouse() {
     mouse[0].type = INPUT_MOUSE;
@@ -75,6 +167,14 @@ void setupMouse() {
 
     mouse[1].type = INPUT_MOUSE;
     mouse[1].mi.dwFlags = MOUSEEVENTF_LEFTUP;
+}
+
+int initTesseract() {
+    if (tess.Init(NULL, "eng")) {
+        std::cerr << "Could not initialize Tesseract\n";
+        return 1;
+    }
+    return 0;
 }
 
 void click(int tileNumber) {
@@ -177,200 +277,103 @@ std::vector<uint8_t> crop(const std::vector<uint8_t> &src, int tileNumber) {
                 cropWidth, cropHeight);
 }
 
-std::vector<uint8_t> resize(const std::vector<uint8_t> &src, int inputWidth, int inputHeight,
-                            int outputWidth, int outputHeight) {
-    std::vector<uint8_t> out(outputWidth * outputHeight * 4);
-    stbir_resize_uint8_linear(src.data(), inputWidth, inputHeight, 0, out.data(), outputWidth,
-                              outputHeight, 0, STBIR_BGRA);
-
-    // Copy to clipboard for debugging
-    // BITMAPINFO bmi{};
-    // bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
-    // bmi.bmiHeader.biWidth = outputWidth;
-    // bmi.bmiHeader.biHeight = -outputHeight;
-    //
-    // bmi.bmiHeader.biPlanes = 1;
-    // bmi.bmiHeader.biBitCount = 32;
-    // bmi.bmiHeader.biCompression = BI_RGB;
-    //
-    // size_t headerSize = sizeof(BITMAPINFOHEADER);
-    // size_t pixelSize = out.size();
-    // size_t totalSize = headerSize + pixelSize;
-    //
-    // HGLOBAL hMem = GlobalAlloc(GMEM_MOVEABLE, totalSize);
-    //
-    // void *dest = GlobalLock(hMem);
-    //
-    // memcpy(dest, &bmi.bmiHeader, headerSize);
-    // memcpy(static_cast<uint8_t *>(dest) + headerSize, out.data(), pixelSize);
-    //
-    // GlobalUnlock(hMem);
-    //
-    // OpenClipboard(NULL);
-    // EmptyClipboard();
-    // SetClipboardData(CF_DIB, hMem);
-    // CloseClipboard();
-
+/**
+ * Convert bgra vector to grayscale using luminance formula in Rec. 709
+ *
+ * It uses `0.2126 * R + 0.7152 * G + 0.0722 * B`. The numbers are multiplied by 256 to get integer
+ * values for faster calculations
+ *
+ * Rec. 709 is used by ImageMagick, DaVinci Resolve, Adobe Premiere Pro, GIMP, and is almost
+ * identical to sRGB, the most commonly used standard for RGB color.
+ */
+std::vector<uint8_t> grayscale(const std::vector<uint8_t> &src) {
+    std::vector<uint8_t> out(src.size() / 4);
+    for (size_t i = 0; i < out.size(); ++i) {
+        size_t srcIdx = 4 * i;
+        out[i] = (54 * src[srcIdx + 2] + 183 * src[srcIdx + 1] + 19 * src[srcIdx]) / 256;
+    }
     return out;
 }
 
-std::vector<uint8_t> resize(const std::vector<uint8_t> &src) {
-    return resize(src, cropWidth, cropHeight, resizeWidth, resizeHeight);
+std::string getText(const std::vector<uint8_t> &src, int width, int height) {
+    tess.SetImage(src.data(), width, height, 1, width);
+    char *textPtr = tess.GetUTF8Text();
+    std::string text(textPtr);
+    delete[] textPtr;
+
+    std::replace(text.begin(), text.end(), '\n', ' ');
+    return text;
 }
 
-std::vector<uint8_t> threshold(const std::vector<uint8_t> &src) {
-    std::vector<uint8_t> out(src.size() / 32);
-    uint8_t byte = 0x0;
-    int bitCount = 0;
-    size_t outIdx = 0;
+/**
+ * Gets the first `idealWords` amount of words from `inText`
+ *
+ * Words are anything a-z or A-Z
+ * It only includes the first non-space character after each word (punctuation counts as a space)
+ * The first and last characters are always letters in non-empty strings
+ */
+std::string getFirstWords(const std::string &inText, int idealWords = 3) {
+    std::string outText;
+    int words = 0;
+    bool inWord = false;
 
-    for (size_t i = 0; i < src.size(); i += 4) {
-        bool bit = (77 * src[i + 2] + 150 * src[i + 1] + 29 * src[i]) > thresholdVal;
-        byte = (byte << 1) | bit;
-
-        ++bitCount;
-
-        if (bitCount == 8) {
-            out[outIdx++] = byte;
-            byte = 0x0;
-            bitCount = 0;
+    for (const char &c : inText) {
+        if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')) {
+            inWord = true;
+            outText += c;
+        } else if (inWord) {
+            inWord = false;
+            if ((++words) == idealWords)
+                break;
+            outText += c;
         }
     }
 
-    return out;
-}
+    if (outText.empty())
+        return "";
 
-std::unordered_map<size_t, int> pairIDs = {
-    // Terms
-    {0, 0},
-    {1, 1},
-    {2, 2},
-    {4018, 3},
-    {4, 4},
-    {5, 5},
-    {6, 6},
-    {7, 7},
-    {4479, 8},
-    {9, 9},
-    {3939, 10},
-    {13572, 11},
-    {14337, 12},
-    {2040, 13},
-    {14, 14},
-    {3198, 15},
-    {16, 16},
-    {17, 17},
-    {18, 18},
-    {3636, 19},
-    {20, 20},
-    {21, 21},
-    {22, 22},
-    {23, 23},
-    {24, 24},
-    {25, 25},
-    {26, 26},
-    {27, 27},
-    {28, 28},
-    {29, 29},
-    {30, 30},
-    {9423, 31},
-    {32, 32},
-    {33, 33},
-    {34, 34},
-    {35, 35},
-    {13355, 36},
-    {2653, 37},
-    {38, 38},
-    {39, 39},
-    {40, 40},
-    {41, 41},
-    {42, 42},
-    {43, 43},
-    {44, 44},
-    {5397, 45},
-    {46, 46},
-    // Definitions
-    {47, 0},
-    {48, 1},
-    {49, 2},
-    {29073, 3},
-    {51, 4},
-    {52, 5},
-    {53, 6},
-    {54, 7},
-    {37921, 8},
-    {56, 9},
-    {28307, 10},
-    {21293, 11},
-    {34960, 12},
-    {37246, 13},
-    {61, 14},
-    {32395, 15},
-    {63, 16},
-    {64, 17},
-    {65, 18},
-    {32878, 19},
-    {67, 20},
-    {68, 21},
-    {69, 22},
-    {70, 23},
-    {71, 24},
-    {72, 25},
-    {73, 26},
-    {74, 27},
-    {75, 28},
-    {76, 29},
-    {77, 30},
-    {43105, 31},
-    {79, 32},
-    {80, 33},
-    {81, 34},
-    {82, 35},
-    {31935, 36},
-    {12409, 37},
-    {85, 38},
-    {86, 39},
-    {87, 40},
-    {88, 41},
-    {89, 42},
-    {90, 43},
-    {91, 44},
-    {21435, 45},
-    {93, 46},
-};
+    char c = outText.back();
+    if (!((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z'))) {
+        outText.pop_back();
+    }
+
+    return outText;
+}
 
 int main() {
     setupMouse();
+    int initResult = initTesseract();
+    if (initResult)
+        return initResult;
 
     std::unordered_map<int, int> rememberedPairs;
     int pairID = 0;
-    std::stack<int> clickNumbers;
+    std::string text;
 
-    const std::vector<uint8_t> fullScreenshot = takeScreenshot();
+    std::array<int, 12> clickNumbers;
+    size_t storeIdx = 0;
+
     bool exit = false;
 
+    const std::vector<uint8_t> fullScreenshot = takeScreenshot();
+
     for (size_t i = 0; i < 12; ++i) {
-        std::vector<uint8_t> processedImage = threshold(resize(crop(fullScreenshot, i)));
-        size_t sum = 0;
-        for (size_t i = 0; i < processedImage.size(); ++i) {
-            sum += processedImage[i];
-        }
-        // std::cout << sum << '\n';
-        auto it2 = pairIDs.find(sum);
-        if (it2 != pairIDs.end()) {
-            pairID = it2->second;
+        text = getFirstWords(getText(grayscale(crop(fullScreenshot, i)), cropWidth, cropHeight));
+
+        auto itText = textData.find(text);
+        if (itText != textData.end()) {
+            pairID = itText->second;
         } else {
-            std::cout << "Sum for tile number " << i << " is " << sum << '\n';
+            std::cout << "Text for tile " << i << " is: " << text << "\n";
             exit = true;
         }
-
         // pairID = i / 2;
         // std::cout << "Pair id: " << pairID << '\n';
         std::unordered_map<int, int>::const_iterator it = rememberedPairs.find(pairID);
         if (it != rememberedPairs.end()) {
             // std::cout << "Clicking " << i << " and " << it->second << '\n';
-            clickNumbers.push(it->second);
-            clickNumbers.push(i);
+            clickNumbers[storeIdx++] = it->second;
+            clickNumbers[storeIdx++] = i;
             rememberedPairs.erase(pairID);
         } else {
             // std::cout << "Adding " << i << '\n';
@@ -378,12 +381,12 @@ int main() {
         }
     }
 
+    crop(fullScreenshot, 5);
     if (exit)
         return 1;
 
-    for (size_t i = 0; i < 12; ++i) {
-        click(clickNumbers.top());
-        clickNumbers.pop();
+    for (const int &tile : clickNumbers) {
+        click(tile);
         Sleep(160);
     }
 
