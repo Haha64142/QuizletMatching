@@ -1,7 +1,7 @@
 /* Main program:
  * 1. take full screenshot
  * 2. crop image and process it
- * 3. convert crop to pair id
+ * 3. convert crop to pair id using tesseract
  * 4. check if pair id exists in remembered pairs
  * 5. if yes, click the current tile and the tile in remembered pairs
  * 6. remove the pair id from remebered pairs
@@ -11,6 +11,8 @@
  * Image processing:
  * 1. grayscale
  * 2. ocr using tesseract
+ * 3. take only the first 3 words
+ * 4. use unordered map for lookup
  *
  * Variables and Definitions:
  * tile number: 0-11 representing the physical location of the tile on the screen
@@ -20,6 +22,7 @@
  * click positions: list - index: tile number, value: coord to click
  * crop positions: list - index: tile number, value: top corner of the cropped tile
  * remembered pairs: unordered_map - key: pair id, value: tile number
+ * text data: unordered_map - key: first 3 words of tile, value: pair id
  * */
 
 #include <algorithm>
