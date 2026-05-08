@@ -80,6 +80,10 @@ std::condition_variable cv;
 
 bool finished = false;
 
+std::vector<uint8_t> screenshotBuffer(screenWidth * screenHeight * 4);
+std::vector<uint8_t> cropBuffer(cropWidth * cropHeight * 4);
+std::vector<uint8_t> grayBuffer(cropWidth * cropHeight * 1);
+
 INPUT mouse[2] = {};
 
 tesseract::TessBaseAPI tess;
@@ -239,12 +243,12 @@ std::vector<uint8_t> takeScreenshot() {
     bmi.bmiHeader.biBitCount = 32;
     bmi.bmiHeader.biCompression = BI_RGB;
 
-    std::vector<uint8_t> pixels(screenWidth * screenHeight * 4);
-    GetDIBits(memoryDC, targetBitmap, 0, screenHeight, pixels.data(), &bmi, DIB_RGB_COLORS);
+    GetDIBits(memoryDC, targetBitmap, 0, screenHeight, screenshotBuffer.data(), &bmi,
+              DIB_RGB_COLORS);
 
     // Copy screenshot to clipboard for debugging
     // size_t headerSize = sizeof(BITMAPINFOHEADER);
-    // size_t pixelSize = pixels.size();
+    // size_t pixelSize = screenshotBuffer.size();
     // size_t totalSize = headerSize + pixelSize;
     //
     // HGLOBAL hMem = GlobalAlloc(GMEM_MOVEABLE, totalSize);
@@ -252,7 +256,7 @@ std::vector<uint8_t> takeScreenshot() {
     // void *dest = GlobalLock(hMem);
     //
     // memcpy(dest, &bmi.bmiHeader, headerSize);
-    // memcpy(static_cast<uint8_t *>(dest) + headerSize, pixels.data(), pixelSize);
+    // memcpy(static_cast<uint8_t *>(dest) + headerSize, screenshotBuffer.data(), pixelSize);
     //
     // GlobalUnlock(hMem);
     //
@@ -266,17 +270,16 @@ std::vector<uint8_t> takeScreenshot() {
     DeleteDC(memoryDC);
     ReleaseDC(NULL, screenDC);
 
-    return pixels;
+    return screenshotBuffer;
 }
 
 std::vector<uint8_t> crop(const std::vector<uint8_t> &src, int srcWidth, int srcHeight, int x,
                           int y, int cropWidth, int cropHeight) {
-    std::vector<uint8_t> out(cropWidth * cropHeight * 4);
     for (int row = 0; row < cropHeight; ++row) {
         int srcIdx = ((y + row) * srcWidth + x) * 4;
         int destIdx = row * cropWidth * 4;
 
-        memcpy(&out[destIdx], &src[srcIdx], cropWidth * 4);
+        memcpy(&cropBuffer[destIdx], &src[srcIdx], cropWidth * 4);
     }
 
     // Copy to clipboard for debugging
@@ -290,7 +293,7 @@ std::vector<uint8_t> crop(const std::vector<uint8_t> &src, int srcWidth, int src
     // bmi.bmiHeader.biCompression = BI_RGB;
     //
     // size_t headerSize = sizeof(BITMAPINFOHEADER);
-    // size_t pixelSize = out.size();
+    // size_t pixelSize = cropBuffer.size();
     // size_t totalSize = headerSize + pixelSize;
     //
     // HGLOBAL hMem = GlobalAlloc(GMEM_MOVEABLE, totalSize);
@@ -298,7 +301,7 @@ std::vector<uint8_t> crop(const std::vector<uint8_t> &src, int srcWidth, int src
     // void *dest = GlobalLock(hMem);
     //
     // memcpy(dest, &bmi.bmiHeader, headerSize);
-    // memcpy(static_cast<uint8_t *>(dest) + headerSize, out.data(), pixelSize);
+    // memcpy(static_cast<uint8_t *>(dest) + headerSize, cropBuffer.data(), pixelSize);
     //
     // GlobalUnlock(hMem);
     //
@@ -307,7 +310,7 @@ std::vector<uint8_t> crop(const std::vector<uint8_t> &src, int srcWidth, int src
     // SetClipboardData(CF_DIB, hMem);
     // CloseClipboard();
 
-    return out;
+    return cropBuffer;
 }
 
 std::vector<uint8_t> crop(const std::vector<uint8_t> &src, int tileNumber) {
@@ -325,12 +328,11 @@ std::vector<uint8_t> crop(const std::vector<uint8_t> &src, int tileNumber) {
  * identical to sRGB, the most commonly used standard for RGB color.
  */
 std::vector<uint8_t> grayscale(const std::vector<uint8_t> &src) {
-    std::vector<uint8_t> out(src.size() / 4);
-    for (size_t i = 0; i < out.size(); ++i) {
+    for (size_t i = 0; i < grayBuffer.size(); ++i) {
         size_t srcIdx = 4 * i;
-        out[i] = (54 * src[srcIdx + 2] + 183 * src[srcIdx + 1] + 19 * src[srcIdx]) / 256;
+        grayBuffer[i] = (54 * src[srcIdx + 2] + 183 * src[srcIdx + 1] + 19 * src[srcIdx]) / 256;
     }
-    return out;
+    return grayBuffer;
 }
 
 std::string getText(const std::vector<uint8_t> &src, int width, int height) {
@@ -379,6 +381,8 @@ std::string getFirstWords(const std::string &inText, int idealWords = 3) {
 }
 
 void ocrThread() {
+    auto start = std::chrono::steady_clock::now();
+
     std::unordered_map<int, int> rememberedPairs;
     int pairID = 0;
     std::string text;
@@ -416,6 +420,10 @@ void ocrThread() {
         finished = true;
     }
     cv.notify_one();
+
+    auto end = std::chrono::steady_clock::now();
+    std::chrono::duration<double, std::milli> elapsed = end - start;
+    std::cout << "\nDuration: " << elapsed.count() << "ms\n";
 }
 
 void clickThread() {
