@@ -24,17 +24,25 @@
  * remembered pairs: unordered_map - key: pair id, value: tile number
  * text data: unordered_map - key: first 3 words of tile, value: pair id
  * */
+#include <iostream>
+#include <windows.h>
 
 #include <algorithm>
+#include <string.h>
+
 #include <array>
 #include <cstdint>
-#include <iostream>
-#include <string.h>
+#include <queue>
 #include <string>
-#include <tesseract/baseapi.h>
 #include <unordered_map>
 #include <vector>
-#include <windows.h>
+
+#include <chrono>
+#include <condition_variable>
+#include <mutex>
+#include <thread>
+
+#include <tesseract/baseapi.h>
 
 constexpr int screenWidth = 1920;
 constexpr int screenHeight = 1080;
@@ -62,6 +70,15 @@ constexpr std::array<int, 12> normalizePos(const std::array<int, 12> pos, int di
 
 constexpr std::array<int, 12> clickPosX = normalizePos(origClickPosX, screenWidth);
 constexpr std::array<int, 12> clickPosY = normalizePos(origClickPosY, screenHeight);
+
+const int START_HOTKEY_ID = 0;
+const int EXIT_HOTKEY_ID = 1;
+
+std::queue<int> clickQueue;
+std::mutex queueMutex;
+std::condition_variable cv;
+
+bool finished = false;
 
 INPUT mouse[2] = {};
 
@@ -144,10 +161,11 @@ const std::unordered_map<std::string, int> textData = {
     {"Roosevelt wanted to", 36},
     {"Hobos", 37},
     {"Homeless wanderers who", 37},
-    {"Deficit Spending", 38},
-    {"The economic theory", 38},
+    // Deficit Spending has 2 different definitions
     {"Deficit Spending", 39},
+    {"The economic theory", 39},
     {"Spending more than", 39},
+
     {"Okies", 40},
     {"Farmers who packed", 40},
     {"Loess", 41},
@@ -164,6 +182,8 @@ const std::unordered_map<std::string, int> textData = {
     {"As the American", 46},
 };
 
+inline void sleep_ms(int millis) { std::this_thread::sleep_for(std::chrono::milliseconds(millis)); }
+
 void setupMouse() {
     mouse[0].type = INPUT_MOUSE;
     mouse[0].mi.dwFlags = MOUSEEVENTF_LEFTDOWN | MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE;
@@ -173,15 +193,30 @@ void setupMouse() {
 }
 
 int initTesseract() {
-    if (tess.Init(NULL, "eng")) {
+    int res = tess.Init(NULL, "eng");
+    if (res) {
         std::cerr << "Could not initialize Tesseract\n";
+        return res;
+    }
+    tess.SetPageSegMode(tesseract::PageSegMode::PSM_SINGLE_BLOCK);
+    return 0;
+}
+
+int setupHotkeys() {
+    if (!RegisterHotKey(NULL, START_HOTKEY_ID, MOD_ALT | MOD_NOREPEAT, 'R')) {
+        std::cerr << "Failed to register hotkey: START_HOTKEY\n";
         return 1;
     }
+
+    if (!RegisterHotKey(NULL, EXIT_HOTKEY_ID, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, 'C')) {
+        std::cerr << "Failed to register hotkey: EXIT_HOTKEY";
+        return 1;
+    }
+
     return 0;
 }
 
 void click(int tileNumber) {
-    std::cout << "Click coords: " << clickPosX[tileNumber] << ", " << clickPosY[tileNumber] << '\n';
     mouse[0].mi.dx = clickPosX[tileNumber];
     mouse[0].mi.dy = clickPosY[tileNumber];
 
@@ -343,20 +378,10 @@ std::string getFirstWords(const std::string &inText, int idealWords = 3) {
     return outText;
 }
 
-int main() {
-    setupMouse();
-    int initResult = initTesseract();
-    if (initResult)
-        return initResult;
-
+void ocrThread() {
     std::unordered_map<int, int> rememberedPairs;
     int pairID = 0;
     std::string text;
-
-    std::array<int, 12> clickNumbers;
-    size_t storeIdx = 0;
-
-    bool exit = false;
 
     const std::vector<uint8_t> fullScreenshot = takeScreenshot();
 
@@ -368,30 +393,86 @@ int main() {
             pairID = itText->second;
         } else {
             std::cout << "Text for tile " << i << " is: " << text << "\n";
-            exit = true;
         }
-        // pairID = i / 2;
-        // std::cout << "Pair id: " << pairID << '\n';
-        std::unordered_map<int, int>::const_iterator it = rememberedPairs.find(pairID);
+
+        auto it = rememberedPairs.find(pairID);
         if (it != rememberedPairs.end()) {
-            // std::cout << "Clicking " << i << " and " << it->second << '\n';
-            clickNumbers[storeIdx++] = it->second;
-            clickNumbers[storeIdx++] = i;
+            {
+                std::lock_guard<std::mutex> lock(queueMutex);
+
+                clickQueue.push(it->second);
+                clickQueue.push(i);
+            }
+            cv.notify_one();
+
             rememberedPairs.erase(pairID);
         } else {
-            // std::cout << "Adding " << i << '\n';
             rememberedPairs.emplace(pairID, i);
         }
     }
 
-    crop(fullScreenshot, 5);
-    if (exit)
-        return 1;
+    {
+        std::lock_guard<std::mutex> lock(queueMutex);
+        finished = true;
+    }
+    cv.notify_one();
+}
 
-    for (const int &tile : clickNumbers) {
+void clickThread() {
+    int tile;
+    std::cout << "Clicking: \n";
+
+    while (true) {
+        {
+            std::unique_lock<std::mutex> lock(queueMutex);
+
+            cv.wait(lock, [] { return !clickQueue.empty() || finished; });
+
+            if (clickQueue.empty() && finished)
+                break;
+
+            tile = clickQueue.front();
+            clickQueue.pop();
+        }
+
         click(tile);
-        Sleep(160);
+        std::cout << tile << ", ";
+        sleep_ms(160);
     }
 
+    std::cout << "\nDone\n\n";
+    finished = false;
+}
+
+int main() {
+    setupMouse();
+    int initResult = initTesseract();
+    if (initResult)
+        return initResult;
+    if (setupHotkeys())
+        return 1;
+
+    std::cout << "Press ALT + R to start the quizlet matching\n"
+                 "Press CTRL + ALT + C to exit\n\n";
+
+    MSG msg;
+
+    while (GetMessage(&msg, NULL, 0, 0)) {
+        if (msg.message == WM_HOTKEY) {
+            if (msg.wParam == START_HOTKEY_ID) {
+                std::thread producer(ocrThread);
+                std::thread consumer(clickThread);
+
+                producer.join();
+                consumer.join();
+            } else if (msg.wParam == EXIT_HOTKEY_ID) {
+                break;
+            }
+        }
+    }
+
+    UnregisterHotKey(NULL, START_HOTKEY_ID);
+    UnregisterHotKey(NULL, EXIT_HOTKEY_ID);
+    tess.End();
     return 0;
 }
