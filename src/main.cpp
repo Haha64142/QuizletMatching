@@ -28,6 +28,8 @@
 #include <windows.h>
 
 #include <algorithm>
+#include <atomic>
+#include <emmintrin.h>
 #include <string.h>
 
 #include <array>
@@ -43,6 +45,7 @@
 #include <thread>
 
 #include <tesseract/baseapi.h>
+#include <wingdi.h>
 
 class Timer {
   private:
@@ -52,17 +55,21 @@ class Timer {
   public:
     void start() { startTime = std::chrono::high_resolution_clock::now(); }
     void stop() { endTime = std::chrono::high_resolution_clock::now(); }
-    void print(const std::string &suffix = "") {
+    void printMicro(const std::string &suffix = "us") {
         std::chrono::duration<double, std::micro> elapsed = endTime - startTime;
-        std::cout << elapsed.count() << "us" << suffix;
+        std::cout << elapsed.count() << suffix;
+    }
+    void printMilli(const std::string &suffix = "ms") {
+        std::chrono::duration<double, std::milli> elapsed = endTime - startTime;
+        std::cout << elapsed.count() << suffix;
     }
 };
 
 constexpr int screenWidth = 1920;
 constexpr int screenHeight = 1080;
 
-constexpr int cropWidth = 350;
-constexpr int cropHeight = 160;
+constexpr int cropWidth = 352;
+constexpr int cropHeight = 120;
 
 constexpr std::array<int, 12> cropPosX = {216, 590,  964, 1337, 216, 590,
                                           964, 1337, 216, 590,  964, 1337};
@@ -85,6 +92,8 @@ constexpr std::array<int, 12> normalizePos(const std::array<int, 12> pos, int di
 constexpr std::array<int, 12> clickPosX = normalizePos(origClickPosX, screenWidth);
 constexpr std::array<int, 12> clickPosY = normalizePos(origClickPosY, screenHeight);
 
+const int threshold = 192 * 256;
+
 const int START_HOTKEY_ID = 0;
 const int EXIT_HOTKEY_ID = 1;
 
@@ -92,7 +101,8 @@ std::queue<int> clickQueue;
 std::mutex queueMutex;
 std::condition_variable cv;
 
-bool finished = false;
+std::atomic_bool start = false;
+std::atomic_bool finished = false;
 
 std::vector<uint8_t> screenshotBuffer(screenWidth * screenHeight * 4);
 std::vector<uint8_t> cropBuffer(cropWidth * cropHeight * 4);
@@ -102,6 +112,13 @@ std::vector<uint8_t> grayBuffer(cropWidth * cropHeight * 1);
 std::array<int, 82> tileIdByPair;
 
 INPUT mouse[2] = {};
+
+HDC screenDC = GetDC(NULL);
+HDC memoryDC = CreateCompatibleDC(screenDC);
+HBITMAP targetBitmap = CreateCompatibleBitmap(screenDC, screenWidth, screenHeight);
+HGDIOBJ oldObj = SelectObject(memoryDC, targetBitmap);
+
+BITMAPINFO bmi{};
 
 tesseract::TessBaseAPI tess;
 
@@ -123,6 +140,7 @@ const std::unordered_map<std::string, int> textData = {
     {"Leader of Nazi Germany during World War II", 5},
     {"Mein Kampf My Struggle", 6},
     {"Hitler's autobiography,in which Hitler calls for the", 6},
+    {"Hitter's autobiography,in which Hitler calls for the", 6},
     {"Manchuria", 7},
     {"Resource-rich province in northern China.Japanese military leaders", 7},
     {"The Nye Committee", 8},
@@ -149,6 +167,7 @@ const std::unordered_map<std::string, int> textData = {
     {"Stalin agreed to the nonaggression pact with Germany because", 18},
     {"Blitzkrieg", 19},
     {"The Germans used a new type of warfare called", 19},
+    {"The Germans used anew type of warfare called blitzkrieg", 19}, // Another mess up
     {"Rhineland", 20},
     {"Area west of the Rhine River in which Hitler", 20},
     {"Dunkirk", 21},
@@ -196,6 +215,7 @@ const std::unordered_map<std::string, int> textData = {
     {"Japanese admiral that planned the sneak attack on Pearl", 41},
     {"", 42},
     {"Years of United States involvement in World War II", 42},
+    {"Years of United States involvement in World War I", 42},
     {"Franklin D.Roosevelt FDR", 43},
     {"President of the United States through most of World", 43},
     {"Selective Service and Training Act", 44},
@@ -282,6 +302,7 @@ inline void sleep_ms(int millis) { std::this_thread::sleep_for(std::chrono::mill
 void setupMouse() {
     mouse[0].type = INPUT_MOUSE;
     mouse[0].mi.dwFlags = MOUSEEVENTF_LEFTDOWN | MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE;
+    // mouse[0].mi.dwFlags = MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE;
 
     mouse[1].type = INPUT_MOUSE;
     mouse[1].mi.dwFlags = MOUSEEVENTF_LEFTUP;
@@ -313,21 +334,7 @@ int setupHotkeys() {
     return 0;
 }
 
-void click(int tileNumber) {
-    mouse[0].mi.dx = clickPosX[tileNumber];
-    mouse[0].mi.dy = clickPosY[tileNumber];
-
-    SendInput(2, mouse, sizeof(INPUT));
-}
-
-std::vector<uint8_t> takeScreenshot() {
-    HDC screenDC = GetDC(NULL);
-    HDC memoryDC = CreateCompatibleDC(screenDC);
-    HBITMAP targetBitmap = CreateCompatibleBitmap(screenDC, screenWidth, screenHeight);
-    HGDIOBJ oldObj = SelectObject(memoryDC, targetBitmap);
-    BitBlt(memoryDC, 0, 0, screenWidth, screenHeight, screenDC, 0, 0, SRCCOPY);
-
-    BITMAPINFO bmi{};
+int setupScreenshot() {
     bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
     bmi.bmiHeader.biWidth = screenWidth;
     bmi.bmiHeader.biHeight = -screenHeight;
@@ -335,6 +342,18 @@ std::vector<uint8_t> takeScreenshot() {
     bmi.bmiHeader.biPlanes = 1;
     bmi.bmiHeader.biBitCount = 32;
     bmi.bmiHeader.biCompression = BI_RGB;
+    return 0;
+}
+
+void click(int tileNumber) {
+    mouse[0].mi.dx = clickPosX[tileNumber];
+    mouse[0].mi.dy = clickPosY[tileNumber];
+
+    SendInput(2, mouse, sizeof(INPUT));
+}
+
+void takeScreenshot() {
+    BitBlt(memoryDC, 0, 0, screenWidth, screenHeight, screenDC, 0, 0, SRCCOPY);
 
     GetDIBits(memoryDC, targetBitmap, 0, screenHeight, screenshotBuffer.data(), &bmi,
               DIB_RGB_COLORS);
@@ -357,13 +376,6 @@ std::vector<uint8_t> takeScreenshot() {
     // EmptyClipboard();
     // SetClipboardData(CF_DIB, hMem);
     // CloseClipboard();
-
-    SelectObject(memoryDC, oldObj);
-    DeleteObject(targetBitmap);
-    DeleteDC(memoryDC);
-    ReleaseDC(NULL, screenDC);
-
-    return screenshotBuffer;
 }
 
 std::vector<uint8_t> crop(const std::vector<uint8_t> &src, int srcWidth, int srcHeight, int x,
@@ -423,8 +435,50 @@ std::vector<uint8_t> crop(const std::vector<uint8_t> &src, int tileNumber) {
 std::vector<uint8_t> grayscale(const std::vector<uint8_t> &src) {
     for (size_t i = 0; i < grayBuffer.size(); ++i) {
         size_t srcIdx = 4 * i;
-        grayBuffer[i] = (54 * src[srcIdx + 2] + 183 * src[srcIdx + 1] + 19 * src[srcIdx]) / 256;
+        grayBuffer[i] =
+            (54 * src[srcIdx + 2] + 183 * src[srcIdx + 1] + 19 * src[srcIdx]) < threshold ? 0 : 255;
     }
+
+    // Copy to clipboard for debugging
+    // BITMAPINFO bmi{};
+    // bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+    // bmi.bmiHeader.biWidth = cropWidth;
+    // bmi.bmiHeader.biHeight = -cropHeight;
+    //
+    // bmi.bmiHeader.biPlanes = 1;
+    // bmi.bmiHeader.biBitCount = 8;
+    // bmi.bmiHeader.biCompression = BI_RGB;
+    // bmi.bmiHeader.biClrUsed = 256;
+    //
+    // RGBQUAD palette[256];
+    // for (size_t i = 0; i < 256; ++i) {
+    //     palette[i].rgbRed = i;
+    //     palette[i].rgbGreen = i;
+    //     palette[i].rgbBlue = i;
+    //     palette[i].rgbReserved = 0;
+    // }
+    //
+    // size_t headerSize = sizeof(BITMAPINFOHEADER);
+    // size_t paletteSize = sizeof(palette);
+    // size_t pixelSize = grayBuffer.size();
+    // size_t totalSize = headerSize + paletteSize + pixelSize;
+    //
+    // HGLOBAL hMem = GlobalAlloc(GMEM_MOVEABLE, totalSize);
+    //
+    // void *dest = GlobalLock(hMem);
+    //
+    // memcpy(dest, &bmi.bmiHeader, headerSize);
+    // memcpy(static_cast<uint8_t *>(dest) + headerSize, palette, paletteSize);
+    // memcpy(static_cast<uint8_t *>(dest) + headerSize + paletteSize, grayBuffer.data(),
+    // pixelSize);
+    //
+    // GlobalUnlock(hMem);
+    //
+    // OpenClipboard(NULL);
+    // EmptyClipboard();
+    // SetClipboardData(CF_DIB, hMem);
+    // CloseClipboard();
+
     return grayBuffer;
 }
 
@@ -477,14 +531,27 @@ void ocrThread() {
     int pairID = 0;
     std::string text;
 
-    timer.start();
-    const std::vector<uint8_t> fullScreenshot = takeScreenshot();
-    timer.stop();
-    timer.print("\n");
+    COLORREF c;
+    int r;
+    int g;
+    int b;
+    while (true) {
+        c = GetPixel(screenDC, 850, 800);
+        if (!(GetRValue(c) == 0x1f && GetGValue(c) == 0x1c && GetBValue(c) == 0x8b))
+            break;
+        _mm_pause();
+    }
+    start = true;
+
+    // timer.start();
+    takeScreenshot();
+    // timer.stop();
+    // timer.printMicro("\n");
 
     for (size_t i = 0; i < 12; ++i) {
-        timer.start();
-        text = getFirstWords(getText(grayscale(crop(fullScreenshot, i)), cropWidth, cropHeight), 9);
+        // timer.start();
+        text =
+            getFirstWords(getText(grayscale(crop(screenshotBuffer, i)), cropWidth, cropHeight), 9);
 
         auto itText = textData.find(text);
         if (itText != textData.end()) {
@@ -504,25 +571,31 @@ void ocrThread() {
             }
             cv.notify_one();
         }
-        timer.stop();
-        timer.print("\n");
+        // timer.stop();
+        // timer.print("\n");
     }
 
-    {
-        std::lock_guard<std::mutex> lock(queueMutex);
-        finished = true;
-    }
-    cv.notify_one();
+    finished = true;
+    timer.stop();
+    timer.printMilli("\n");
 
     tileIdByPair.fill(-1);
 }
 
 void clickThread() {
+    // clickQueue.push(10);
+    // clickQueue.push(11);
+
+    while (!start) {
+        _mm_pause();
+    }
+
+    timer.start();
     int tile;
     std::cout << "Clicking: \n";
     // bool timed = false;
 
-    while (true) {
+    for (size_t i = 0; true; ++i) {
         {
             std::unique_lock<std::mutex> lock(queueMutex);
 
@@ -540,10 +613,13 @@ void clickThread() {
         // }
         click(tile);
         // std::cout << tile << ", ";
-        sleep_ms(155);
+        if (i % 2) {
+            sleep_ms(160);
+        }
     }
 
     finished = false;
+    start = false;
     // timed = true;
     std::cout << "\nDone\n\n";
 }
@@ -554,6 +630,8 @@ int main() {
     if (initResult)
         return initResult;
     if (setupHotkeys())
+        return 1;
+    if (setupScreenshot())
         return 1;
     tileIdByPair.fill(-1);
 
@@ -578,6 +656,10 @@ int main() {
 
     UnregisterHotKey(NULL, START_HOTKEY_ID);
     UnregisterHotKey(NULL, EXIT_HOTKEY_ID);
+    SelectObject(memoryDC, oldObj);
+    DeleteObject(targetBitmap);
+    DeleteDC(memoryDC);
+    ReleaseDC(NULL, screenDC);
     tess.End();
     return 0;
 }
