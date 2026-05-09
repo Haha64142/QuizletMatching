@@ -93,6 +93,7 @@ const std::unordered_map<std::string, int> textData = {
     {"Republican Herbert Hoover", 0},
     {"Stock Market", 1},
     {"A system of", 1},
+    {"Asystem of", 1}, // Somtimes it doesn't see the space
     {"Margin", 2},
     {"Buying a stock", 2},
     {"Margin Call", 3},
@@ -203,6 +204,8 @@ int initTesseract() {
         return res;
     }
     tess.SetPageSegMode(tesseract::PageSegMode::PSM_SINGLE_BLOCK);
+    tess.SetVariable("tessedit_char_whitelist",
+                     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz,;'/ ");
     return 0;
 }
 
