@@ -539,7 +539,6 @@ void ocrThread() {
         c = GetPixel(screenDC, 850, 800);
         if (!(GetRValue(c) == 0x1f && GetGValue(c) == 0x1c && GetBValue(c) == 0x8b))
             break;
-        _mm_pause();
     }
     start = true;
 
@@ -576,8 +575,6 @@ void ocrThread() {
     }
 
     finished = true;
-    timer.stop();
-    timer.printMilli("\n");
 
     tileIdByPair.fill(-1);
 }
@@ -589,8 +586,8 @@ void clickThread() {
     while (!start) {
         _mm_pause();
     }
-
     timer.start();
+
     int tile;
     std::cout << "Clicking: \n";
     // bool timed = false;
@@ -617,6 +614,8 @@ void clickThread() {
             sleep_ms(160);
         }
     }
+    timer.stop();
+    timer.printMilli("\n");
 
     finished = false;
     start = false;
@@ -625,6 +624,7 @@ void clickThread() {
 }
 
 int main() {
+    _putenv("OMP_THREAD_LIMIT=1");
     setupMouse();
     int initResult = initTesseract();
     if (initResult)
