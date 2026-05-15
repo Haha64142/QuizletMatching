@@ -29,7 +29,7 @@
 
 #include <algorithm>
 #include <atomic>
-#include <emmintrin.h>
+#include <immintrin.h>
 #include <string.h>
 
 #include <array>
@@ -125,176 +125,170 @@ tesseract::TessBaseAPI tess;
 Timer timer;
 
 const std::unordered_map<std::string, int> textData = {
-    {"Totalitarianism", 0},
-    {"is any political system in which a citizen is", 0},
-    {"Benito Mussolini", 1},
-    {"One of Europe's first major dictators.In after", 1},
-    {"One of Europe's first major dictators.In.after", 1}, // Sometimes messes up
-    {"Fascism", 2},
-    {"Refers to authoritarian political movement which ruled Italy under", 2},
-    {"Vladimir Lenin", 3},
-    {"Leader of the Bolshevik Party in Russia.Established the", 3},
-    {"Joseph Stalin", 4},
-    {"The Soviet dictator led the USSR through World War", 4},
-    {"Adolf Hitler", 5},
-    {"Leader of Nazi Germany during World War II", 5},
-    {"Mein Kampf My Struggle", 6},
-    {"Hitler's autobiography,in which Hitler calls for the", 6},
-    {"Hitter's autobiography,in which Hitler calls for the", 6},
-    {"Manchuria", 7},
-    {"Resource-rich province in northern China.Japanese military leaders", 7},
-    {"The Nye Committee", 8},
-    {"Was responsible for documenting the huge profits that arms", 8},
-    {"Neutrality Act of", 9},
-    {"The act made it illegal for Americans to sell", 9},
-    {"Francisco Franco", 10},
-    {"led a rebellion in Spain,after the coalition of", 10},
-    {"Emperor Hirohito", 11},
-    {"The ruler of Japan during World War II", 11},
-    {"General Tojo", 12},
-    {"The military ruler of Japan", 12},
-    {"Axis-Powers", 13},
-    {"Together Germany,Italy,and Japan became known as the", 13},
-    {"Sudetenland", 14},
-    {"An area of Czechoslovakia with a large German-speaking", 14},
-    {"Neville Chamberlain", 15},
-    {"British prime minister who publicly promised to support France", 15},
-    {"The Munich Conference", 16},
-    {"On September Britain and France agreed to Hitler's", 16},
-    {"Poland", 17},
-    {"After the Munich conference,Hitler turned his sights on", 17},
-    {"The Nazi-Soviet Nonaggression Pact", 18},
-    {"Stalin agreed to the nonaggression pact with Germany because", 18},
-    {"Blitzkrieg", 19},
-    {"The Germans used a new type of warfare called", 19},
-    {"The Germans used anew type of warfare called blitzkrieg", 19}, // Another mess up
-    {"Rhineland", 20},
-    {"Area west of the Rhine River in which Hitler", 20},
-    {"Dunkirk", 21},
-    {"A small town in northern France near the Belgian", 21},
-    {"Vichy Regime", 22},
-    {"The puppet government set up by Hitler in Southern", 22},
-    {"Marshall Petain", 23},
-    {"The head of the Vichy Regime", 23},
-    {"Winston Churchill", 24},
-    {"Prime minister of Britain,who replaced Neville Chamberlain.Churchill", 24},
-    {"The Battle of Britain", 25},
-    {"The air battle between Britain and Germany that began", 25},
-    {"Royal Air Force R.A.F", 26},
-    {"Britain's Air Force", 26},
-    {"Hermann Goering", 27},
-    {"Head of the German air force,called the Luftwaffe", 27},
-    {"Luftwaffe", 28},
-    {"Germany's Air Force", 28},
-    {"The Nuremberg Laws", 29},
-    {"Laws set up by the Nazis that took rights", 29},
-    {"Gestapo", 30},
-    {"The Nazi governments secret police", 30},
-    {"Kristallnacht night of broken glass", 31},
-    {"The anti-Jewish violence that erupted throughout Germany and", 31},
-    {"Albert Einstein", 32},
-    {"In the early s Albert Einstein was among the", 32},
-    {"Holocaust", 33},
-    {"Hitler's attempt to destroy the Jews in Europe", 33},
-    {"Concentration Camps", 34},
-    {"Detention centers where Jews and other undesirables\"were sent", 34},
-    {"Detention centers where Jews and other undesirables'were sent", 34}, // Sometimes messes up
-    {"Extermination Camps", 35},
-    {"These were added to many concentration camps after the", 35},
-    {"The Neutrality Act of", 36},
-    {"Warring nations could buy weapons from the United States", 36},
-    {"The Lend-Lease Act", 37},
-    {"The United States would be able to lend or", 37},
-    {"The Atlantic Charter", 38},
-    {"It committed the two leaders to a postwar world", 38},
-    {"Pearl Harbor", 39},
-    {"The place where the Japanese tried to destroy the", 39},
-    {"December", 40},
-    {"The date that the Japanese bombed Pearl Harbor", 40},
-    {"Admiral Yamamoto", 41},
-    {"Japanese admiral that planned the sneak attack on Pearl", 41},
-    {"", 42},
-    {"Years of United States involvement in World War II", 42},
-    {"Years of United States involvement in World War I", 42},
-    {"Franklin D.Roosevelt FDR", 43},
-    {"President of the United States through most of World", 43},
-    {"Selective Service and Training Act", 44},
-    {"First peacetime draft in the United States", 44},
-    {"General George Marshall", 45},
-    {"The chairman of the Joint Chiefs of Staff fought", 45},
-    {"General Dwight Eisenhower", 46},
-    {"The supreme allied commander in Europe", 46},
-    {"Operation Torch", 47},
-    {"The code name for the American invasion of North", 47},
-    {"Erwin Rommel", 48},
-    {"Germany's best field commander.Known as The Desert", 48},
-    {"General Bernard Montgomery", 49},
-    {"Great Britain's best field general", 49},
-    {"General George Patton", 50},
-    {"America's best field general.Known as Old Blood", 50},
-    {"General Mark Clark", 51},
-    {"General in charge of the Italian Campaign during World", 51},
-    {"Operation Barbarossa", 52},
-    {"The code name for the German invasion of the", 52},
-    {"Stalingrad", 53},
-    {"The German defeat at this city was the turning", 53},
-    {"D-Day/Operation Overlord", 54},
-    {"Codename for the Allied invasion of France", 54},
-    {"June", 55},
-    {"The date of the Allied invasion of France", 55},
-    {"Battle of the Bulge", 56},
-    {"The largest battle fought by the United States Forces", 56},
-    {"Audie Murphy", 57},
-    {"Served in the European Theatre,is the most decorated", 57},
-    {"V-E Day", 58},
-    {"Victory in Europe,May", 58},
-    {"General Douglas MacArthur", 59},
-    {"The supreme Allied commander in the Pacific", 59},
-    {"Chester Nimitz", 60},
-    {"Top Admiral in the United States Navy during World", 60},
-    {"Coral Sea", 61},
-    {"First naval battle ever fought using only airplanes;this", 61},
-    {"Guadalcanal", 62},
-    {"First time the American forces land on an island", 62},
-    {"Island Hopping", 63},
-    {"American strategy used to defeat Japan;Americans would only", 63},
-    {"Midway", 64},
-    {"The United States victory here was the turning point", 64},
-    {"Leyte Gulf", 65},
-    {"The victory in which the United States navy destroyed", 65},
-    {"Kamikaze", 66},
-    {"Japanese suicide planes,one plane one ship", 66},
-    {"Asian Americans", 67},
-    {"During World War II,the United States government placed", 67},
-    {"Korematsu v.United States", 68},
-    {"Supreme Court case that ruled relocation of Japanese Americans", 68},
-    {"Bataan Death March", 69},
-    {"Took place in the Philippines", 69},
-    {"Iwo Jima/Okinawa", 70},
-    {"lwo Jima/Okinawa", 70}, // Sometimes messes up 'Iwo'
-    {"Because of the heavy casualties suffered on these islands", 70},
-    {"Ernie Pyle", 71},
-    {"Famous reporter for Stars and Stripes;he was killed", 71},
-    {"Manhattan Project", 72},
-    {"Code name for the development of the atomic bomb", 72},
-    {"Dr.Oppenheimer", 73},
-    {"The man in charge of the Manhattan Project", 73},
-    {"Harry S Truman", 74},
-    {"The American president that made the decision to drop", 74},
-    {"USS Indianapolis", 75},
-    {"Ship that delivered the atomic bomb to Tinian Island", 75},
-    {"Enola Gay", 76},
-    {"The B2bomber that dropped the first atomic bomb", 76},
-    {"Hiroshima", 77},
-    {"The city selected as the target for the first", 77},
-    {"The Bock's Car", 78},
-    {"The B2bomber that dropped the second atomic bomb", 78},
-    {"Nagasaki", 79},
-    {"The city selected as the target for the second", 79},
-    {"USS Missouri", 80},
-    {"Ship on which the Japanese surrendered at the end", 80},
-    {"V-J Day", 81},
-    {"Victory in Japan,September", 81},
+    {"totalitarianism", 0},
+    {"isanypoliticalsysteminwhichacitiz", 0},
+    {"benitomussolini", 1},
+    {"oneofeuropesfirstmajordictatorsin", 1},
+    {"fascism", 2},
+    {"referstoauthoritarianpoliticalmov", 2},
+    {"vladimirlenin", 3},
+    {"leaderofthebolshevikpartyinrussia", 3},
+    {"josephstalin", 4},
+    {"thesovietdictatorledtheussrthroug", 4},
+    {"adolfhitler", 5},
+    {"leaderofnazigermanyduringworldwar", 5},
+    {"meinkampfmystruggle", 6},
+    {"hitlersautobiographyinwhichhitler", 6},
+    {"manchuria", 7},
+    {"resourcerichprovinceinnorthernchi", 7},
+    {"thenyecommittee", 8},
+    {"wasresponsiblefordocumentingthehu", 8},
+    {"neutralityactof1935", 9},
+    {"theactmadeitillegalforamericansto", 9},
+    {"franciscofranco", 10},
+    {"ledarebellioninspainafterthecoali", 10},
+    {"emperorhirohito", 11},
+    {"therulerofjapanduringworldwarii", 11},
+    {"generaltojo", 12},
+    {"themilitaryrulerofjapan", 12},
+    {"axispowers", 13},
+    {"togethergermanyitalyandjapanbecam", 13},
+    {"sudetenland", 14},
+    {"anareaofczechoslovakiawithalargeg", 14},
+    {"nevillechamberlain", 15},
+    {"britishprimeministerwhopubliclypr", 15},
+    {"themunichconference", 16},
+    {"onseptember291938britainandfrance", 16},
+    {"poland", 17},
+    {"afterthemunichconferencehitlertur", 17},
+    {"thenazisovietnonaggressionpact", 18},
+    {"stalinagreedtothenonaggressionpac", 18},
+    {"blitzkrieg", 19},
+    {"thegermansusedanewtypeofwarfareca", 19},
+    {"rhineland", 20},
+    {"areawestoftherhineriverinwhichhit", 20},
+    {"dunkirk", 21},
+    {"asmalltowninnorthernfrancenearthe", 21},
+    {"vichyregime", 22},
+    {"thepuppetgovernmentsetupbyhitleri", 22},
+    {"marshallpetain", 23},
+    {"theheadofthevichyregime", 23},
+    {"winstonchurchill", 24},
+    {"primeministerofbritainwhoreplaced", 24},
+    {"thebattleofbritain", 25},
+    {"theairbattlebetweenbritainandgerm", 25},
+    {"royalairforceraf", 26},
+    {"britainsairforce", 26},
+    {"hermanngoering", 27},
+    {"headofthegermanairforcecalledthel", 27},
+    {"luftwaffe", 28},
+    {"germanysairforce", 28},
+    {"thenuremberglaws", 29},
+    {"lawssetupbythenazisthattookrights", 29},
+    {"gestapo", 30},
+    {"thenazigovernmentssecretpolice", 30},
+    {"kristallnachtnightofbrokenglass", 31},
+    {"theantijewishviolencethateruptedt", 31},
+    {"alberteinstein", 32},
+    {"intheearly1930salberteinsteinwasa", 32},
+    {"holocaust", 33},
+    {"hitlersattempttodestroythejewsine", 33},
+    {"concentrationcamps", 34},
+    {"detentioncenterswherejewsandother", 34},
+    {"exterminationcamps", 35},
+    {"thesewereaddedtomanyconcentration", 35},
+    {"theneutralityactof1939", 36},
+    {"warringnationscouldbuyweaponsfrom", 36},
+    {"thelendleaseact", 37},
+    {"theunitedstateswouldbeabletolendo", 37},
+    {"theatlanticcharter", 38},
+    {"itcommittedthetwoleaderstoapostwa", 38},
+    {"pearlharbor", 39},
+    {"theplacewherethejapanesetriedtode", 39},
+    {"december71941", 40},
+    {"thedatethatthejapanesebombedpearl", 40},
+    {"admiralyamamoto", 41},
+    {"japaneseadmiralthatplannedthesnea", 41},
+    {"19411945", 42},
+    {"yearsofunitedstatesinvolvementinw", 42},
+    {"franklindrooseveltfdr", 43},
+    {"presidentoftheunitedstatesthrough", 43},
+    {"selectiveserviceandtrainingact", 44},
+    {"firstpeacetimedraftintheunitedsta", 44},
+    {"generalgeorgemarshall", 45},
+    {"thechairmanofthejointchiefsofstaf", 45},
+    {"generaldwighteisenhower", 46},
+    {"thesupremealliedcommanderineurope", 46},
+    {"operationtorch", 47},
+    {"thecodenamefortheamericaninvasion", 47},
+    {"erwinrommel", 48},
+    {"germanysbestfieldcommanderknownas", 48},
+    {"generalbernardmontgomery", 49},
+    {"greatbritainsbestfieldgeneral", 49},
+    {"generalgeorgepatton", 50},
+    {"americasbestfieldgeneralknownasol", 50},
+    {"generalmarkclark", 51},
+    {"generalinchargeoftheitaliancampai", 51},
+    {"operationbarbarossa", 52},
+    {"thecodenameforthegermaninvasionof", 52},
+    {"stalingrad", 53},
+    {"thegermandefeatatthiscitywasthetu", 53},
+    {"ddayoperationoverlord", 54},
+    {"codenameforthealliedinvasionoffra", 54},
+    {"june61944", 55},
+    {"thedateofthealliedinvasionoffranc", 55},
+    {"battleofthebulge", 56},
+    {"thelargestbattlefoughtbytheunited", 56},
+    {"audiemurphy", 57},
+    {"servedintheeuropeantheatreisthemo", 57},
+    {"veday", 58},
+    {"victoryineuropemay81945", 58},
+    {"generaldouglasmacarthur", 59},
+    {"thesupremealliedcommanderinthepac", 59},
+    {"chesternimitz", 60},
+    {"topadmiralintheunitedstatesnavydu", 60},
+    {"coralsea", 61},
+    {"firstnavalbattleeverfoughtusingon", 61},
+    {"guadalcanal", 62},
+    {"firsttimetheamericanforceslandona", 62},
+    {"islandhopping", 63},
+    {"americanstrategyusedtodefeatjapan", 63},
+    {"midway", 64},
+    {"theunitedstatesvictoryherewasthet", 64},
+    {"leytegulf", 65},
+    {"thevictoryinwhichtheunitedstatesn", 65},
+    {"kamikaze", 66},
+    {"japanesesuicideplanesoneplaneones", 66},
+    {"asianamericans", 67},
+    {"duringworldwariitheunitedstatesgo", 67},
+    {"korematsuvunitedstates", 68},
+    {"supremecourtcasethatruledrelocati", 68},
+    {"bataandeathmarch", 69},
+    {"tookplaceinthephilippines", 69},
+    {"iwojimaokinawa", 70},
+    {"becauseoftheheavycasualtiessuffer", 70},
+    {"erniepyle", 71},
+    {"famousreporterforstarsandstripesh", 71},
+    {"manhattanproject", 72},
+    {"codenameforthedevelopmentoftheato", 72},
+    {"droppenheimer", 73},
+    {"themaninchargeofthemanhattanproje", 73},
+    {"harrystruman", 74},
+    {"theamericanpresidentthatmadethede", 74},
+    {"ussindianapolis", 75},
+    {"shipthatdeliveredtheatomicbombtot", 75},
+    {"enolagay", 76},
+    {"theb29bomberthatdroppedthefirstat", 76},
+    {"hiroshima", 77},
+    {"thecityselectedasthetargetforthef", 77},
+    {"thebockscar", 78},
+    {"theb29bomberthatdroppedtheseconda", 78},
+    {"nagasaki", 79},
+    {"thecityselectedasthetargetforthes", 79},
+    {"ussmissouri", 80},
+    {"shiponwhichthejapanesesurrendered", 80},
+    {"vjday", 81},
+    {"victoryinjapanseptember21945", 81},
 };
 
 inline void sleep_ms(int millis) { std::this_thread::sleep_for(std::chrono::milliseconds(millis)); }
@@ -316,7 +310,7 @@ int initTesseract() {
     }
     tess.SetPageSegMode(tesseract::PageSegMode::PSM_SINGLE_BLOCK);
     tess.SetVariable("tessedit_char_whitelist",
-                     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz,;'/ -.0123456789\"");
+                     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789");
     return 0;
 }
 
@@ -488,69 +482,31 @@ std::string getText(const std::vector<uint8_t> &src, int width, int height) {
     std::string text(textPtr);
     delete[] textPtr;
 
-    std::replace(text.begin(), text.end(), '\n', ' ');
+    text.erase(std::remove_if(text.begin(), text.end(), isspace), text.end());
+    text = text.substr(0, 33);
+    for (char &c : text) {
+        c |= 0b00100000; // Flip the 5th bit to a 1, which in ASCII, changes uppercase to lowercase
+    }
     return text;
-}
-
-/**
- * Gets the first `idealWords` amount of words from `inText`
- *
- * Words are anything a-z or A-Z
- * It only includes the first non-space character after each word (punctuation counts as a space)
- * The first and last characters are always letters in non-empty strings
- */
-std::string getFirstWords(const std::string &inText, int idealWords = 3) {
-    std::string outText;
-    int words = 0;
-    bool inWord = false;
-
-    for (const char &c : inText) {
-        if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')) {
-            inWord = true;
-            outText += c;
-        } else if (inWord) {
-            inWord = false;
-            if ((++words) == idealWords)
-                break;
-            outText += c;
-        }
-    }
-
-    if (outText.empty())
-        return "";
-
-    char c = outText.back();
-    if (!((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z'))) {
-        outText.pop_back();
-    }
-
-    return outText;
 }
 
 void ocrThread() {
     int pairID = 0;
     std::string text;
 
-    COLORREF c;
-    int r;
-    int g;
-    int b;
-    while (true) {
-        c = GetPixel(screenDC, 850, 800);
-        if (!(GetRValue(c) == 0x1f && GetGValue(c) == 0x1c && GetBValue(c) == 0x8b))
-            break;
+    while (!start) {
+        _mm_pause();
     }
-    start = true;
+    timer.start();
 
     // timer.start();
     takeScreenshot();
     // timer.stop();
     // timer.printMicro("\n");
 
-    for (size_t i = 0; i < 12; ++i) {
+    for (size_t i = 0; i < 10; ++i) {
         // timer.start();
-        text =
-            getFirstWords(getText(grayscale(crop(screenshotBuffer, i)), cropWidth, cropHeight), 9);
+        text = getText(grayscale(crop(screenshotBuffer, i)), cropWidth, cropHeight);
 
         auto itText = textData.find(text);
         if (itText != textData.end()) {
@@ -580,13 +536,13 @@ void ocrThread() {
 }
 
 void clickThread() {
-    // clickQueue.push(10);
-    // clickQueue.push(11);
+    clickQueue.push(10);
+    clickQueue.push(11);
 
-    while (!start) {
+    while (GetRValue(GetPixel(screenDC, 850, 800)) == 0x1f) {
         _mm_pause();
     }
-    timer.start();
+    start = true;
 
     int tile;
     std::cout << "Clicking: \n";
@@ -624,7 +580,6 @@ void clickThread() {
 }
 
 int main() {
-    _putenv("OMP_THREAD_LIMIT=1");
     setupMouse();
     int initResult = initTesseract();
     if (initResult)
